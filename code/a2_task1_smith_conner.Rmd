@@ -13,10 +13,12 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 
 library(tidyverse)
 library(here)
+library(ggbeeswarm)
 library(broom)
 library(jtools)
 library(caret)
 library(AICcmodavg)
+library(cowplot)
 ```
 
 ## **Overview**
@@ -31,6 +33,56 @@ This analysis uses binary logistic regression to test feasibility of using varia
 # Read in the data 
 
 palmetto <- read_csv(here("data", "all_palmetto_data.csv"))
+```
+
+#### **Figure 1:** *...*
+
+```{r}
+# Create 2 finalized data visualizations exploring differences in height, canopy length, canopy width, and green leaves for the two species. Note: species code 1 is Serenoa repens and species code 2 is Sabal etonia. 
+
+palmetto_clean <- palmetto %>% 
+  select(year, species, height:green_lvs) %>% 
+  mutate(species = case_when(species == "1" ~ "Serenoa repens",
+                   species == "2" ~ "Serenoa etonia"))
+
+height <- ggplot(data = palmetto_clean, aes(x = species, y = height)) +
+  geom_beeswarm(aes(color = species), 
+                dodge.width = 0, cex = 0.4, size = 0.2,
+                show.legend = FALSE) +
+  geom_boxplot(fill = NA, width = 0.2, color = 'darkslategray',
+               outlier.color = NA) +
+  stat_summary(fun.y = "mean",
+               col = "darkslategray",
+               shape = 18) +
+  scale_color_manual(values = c("darkolivegreen3", "seagreen")) +
+  theme_bw() +
+  labs(x = "Species", y = "Height (cm)")
+
+
+leaves <- ggplot(data = palmetto_clean, aes(x = green_lvs)) +
+  geom_histogram(aes(fill = species), color = "darkslategray",
+                 binwidth = 1, show.legend = FALSE) +
+  scale_fill_manual(values = c("darkolivegreen3", "seagreen")) +
+  facet_wrap(~ species) +
+  theme_bw() +
+  labs(x = "Green Leaves (number)", y = "Count")
+
+
+title <- ggdraw() + 
+  draw_label(
+    "Figure 1: Paletto Height and Leaf Count by Species",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0) +
+  theme(plot.margin = margin(0, 0, 0, 7))
+
+
+plots <- plot_grid(height, leaves,
+                   ncol = 2,
+                   rel_widths = c(1, 1))
+
+plot_grid(title, plots, ncol = 1,
+          rel_heights = c(0.1, 1, 0.1))
 ```
 
 
