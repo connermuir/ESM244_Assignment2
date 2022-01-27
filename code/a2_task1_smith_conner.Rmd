@@ -1,0 +1,39 @@
+---
+title: "Assignment 2 - Task 1"
+author: "Conner Smith"
+date: "1/27/2022"
+output: 
+  html_document: 
+    theme: flatly
+    code_folding: hide
+---
+
+```{r setup, include=TRUE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(here)
+library(broom)
+library(jtools)
+library(caret)
+library(AICcmodavg)
+```
+
+## **Overview**
+
+This anslysis looks at the survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017. It uses binary logistic regression to predict whether a palmetto is species Serenoa repens or Sabal etonia. Data was collected by the Environemntal Data Initiative. 
+
+## **Analysis**
+
+This analysis uses binary logistic regression to test feasibility of using variables plant height (height), canopy length (length), canopy width (width), and number of green leaves (green_lvs) to classify whether a palmetto is species Serenoa repens or Sabal etonia. 
+
+```{r}
+# Read in the data 
+
+palmetto <- read_csv(here("data", "all_palmetto_data.csv"))
+```
+
+
+### **Data Citation**
+
+*Abrahamson, W.G. 2019. Survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017, ongoing at 5-year intervals ver 1. Environmental Data Initiative. https://doi.org/10.6073/pasta/f2f96ec76fbbd4b9db431c79a770c4d5*
