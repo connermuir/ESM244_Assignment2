@@ -25,17 +25,17 @@ library(cowplot)
 
 This anslysis looks at the survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017. It uses binary logistic regression to predict whether a palmetto is species Serenoa repens or Sabal etonia. Data was collected by the Environemntal Data Initiative. 
 
-## **Analysis**
-
-This analysis uses binary logistic regression to test feasibility of using variables plant height (height), canopy length (length), canopy width (width), and number of green leaves (green_lvs) to classify whether a palmetto is species Serenoa repens or Sabal etonia. 
+## **Data Visualization**
 
 ```{r}
 # Read in the data 
 
-palmetto <- read_csv(here("data", "all_palmetto_data.csv"))
+palmetto <- read_csv(here("data", "palmetto.csv"))
 ```
 
-#### **Figure 1:** *...*
+This analysis uses binary logistic regression to test feasibility of using variables plant height (height), canopy length (length), canopy width (width), and number of green leaves (green_lvs) to classify whether a palmetto is species Serenoa repens or Sabal etonia. 
+
+#### **Figure 1: Palmetto Height and Leaf Count by Species** 
 
 ```{r}
 # Create 2 finalized data visualizations exploring differences in height, canopy length, canopy width, and green leaves for the two species. Note: species code 1 is Serenoa repens and species code 2 is Sabal etonia. 
@@ -45,9 +45,20 @@ palmetto_clean <- palmetto %>%
   mutate(species = case_when(species == "1" ~ "Serenoa repens",
                    species == "2" ~ "Serenoa etonia"))
 
+#Creating summary of height to pull means for in-line code 
+
+palmetto_summary <- palmetto_clean %>%
+  group_by(species) %>% 
+  summarize(count = n(),
+            mean_height = mean(height, na.rm = TRUE),
+            mean_width = mean(width, na.rm = TRUE),
+            mean_length = mean(length, na.rm = TRUE))
+
+# Plot 1: Height beeswarm 
+
 height <- ggplot(data = palmetto_clean, aes(x = species, y = height)) +
   geom_beeswarm(aes(color = species), 
-                dodge.width = 0, cex = 0.4, size = 0.2,
+                dodge.width = 0, cex = 0.4, size = 0.1,
                 show.legend = FALSE) +
   geom_boxplot(fill = NA, width = 0.2, color = 'darkslategray',
                outlier.color = NA) +
@@ -58,6 +69,7 @@ height <- ggplot(data = palmetto_clean, aes(x = species, y = height)) +
   theme_bw() +
   labs(x = "Species", y = "Height (cm)")
 
+# Plot 2: Leaves histogram
 
 leaves <- ggplot(data = palmetto_clean, aes(x = green_lvs)) +
   geom_histogram(aes(fill = species), color = "darkslategray",
@@ -67,22 +79,85 @@ leaves <- ggplot(data = palmetto_clean, aes(x = green_lvs)) +
   theme_bw() +
   labs(x = "Green Leaves (number)", y = "Count")
 
-
-title <- ggdraw() + 
-  draw_label(
-    "Figure 1: Paletto Height and Leaf Count by Species",
-    fontface = 'bold',
-    x = 0,
-    hjust = 0) +
-  theme(plot.margin = margin(0, 0, 0, 7))
-
+# combine plots
 
 plots <- plot_grid(height, leaves,
                    ncol = 2,
                    rel_widths = c(1, 1))
 
-plot_grid(title, plots, ncol = 1,
+plot_grid(plots, ncol = 1,
           rel_heights = c(0.1, 1, 0.1))
+```
+
+##### **Figure 1:** *The left graph plots palmetto height by species with the box showing the median values as well as the the 75th and 25th percentile ranges. The diamond points represent the mean values. The right plot shows the distribution of leaf number by species.*
+
+These graphs show that both species have a similar height. The difference in mean height between the two species is only `r round(palmetto_summary$mean_height[2] - palmetto_summary$mean_height[1], 2)`centimeters. The taller of the two species, Serenoa repens tend to have more green leaves, although the range of leaf number is wider. Serenoa etonia were more closely clustered around 3-4 leaves.  
+
+#### **Figure 2: Palmetto Canopy Width and Length by Species** 
+
+```{r}
+# Plot 1: width
+
+width <- ggplot(data = palmetto_clean, aes(x = species, y = width)) +
+  geom_jitter(aes(color = species), width = 0.3, size = 0.5,
+             show.legend = FALSE) +
+  geom_boxplot(fill = NA, width = 0.2, color = 'darkslategray',
+               outlier.color = NA) +
+  stat_summary(fun.y = "mean",
+               col = "darkslategray",
+               shape = 18) +
+  scale_color_manual(values = c("darkolivegreen3", "seagreen")) +
+  theme_bw() +
+  theme(axis.title.x=element_blank(), 
+        axis.title.y = element_text(size = 10)) +
+  labs(y = "Canopy Width (cm)")
+
+# Plot 2: Length
+
+length <- ggplot(data = palmetto_clean, aes(x = species, y = length)) +
+  geom_jitter(aes(color = species), width = 0.3, size = 0.5,
+             show.legend = FALSE) +
+  geom_boxplot(fill = NA, width = 0.2, color = 'darkslategray',
+               outlier.color = NA) +
+  stat_summary(fun.y = "mean",
+               col = "darkslategray",
+               shape = 18) +
+  scale_color_manual(values = c("darkolivegreen3", "seagreen")) +
+  theme_bw() +
+  theme(axis.title.x=element_blank(), 
+        axis.title.y = element_text(size = 10)) +
+  labs(y = "Canopy Length (cm)")
+
+# combine plots
+
+plots <- plot_grid(width, length,
+                   ncol = 2,
+                   rel_widths = c(1, 1))
+
+plot_grid(plots, ncol = 1,
+          rel_heights = c(0.1, 1, 0.1))
+
+```
+
+##### **Figure 2:** *The graph shows the height and length of palmetto canopy across the two species.*
+
+Both species show similar average canopy width and length with the Serenoa etonia showing higher mean values for both. For the width, the difference in means between the two species is `r round(palmetto_summary$mean_width[1] - palmetto_summary$mean_width[2], 2)` centimeters. The difference in average length is `r round(palmetto_summary$mean_length[1] - palmetto_summary$mean_length[2], 2)` centimeters.
+
+## **Model Analysis**
+
+Now knowing a few general characteristics about the two species, this analysis will build a binomial logistic regression to try and predict the species from the data. 
+
+```{r}
+# Perform the analysis twice, using cross validation to compare two models.
+
+# Model 1: Log odds of plant type using plant height, canopy length, canopy width and green leaves as predictor variable.
+
+f1 <- species ~ height + width + length + green_lvs
+
+# Model 2: Log odds of plant type using plant height, canopy width and green leaves (i.e., drop canopy length for this model)
+
+f2 <- species ~ height + width + green_lvs
+
 ```
 
 
