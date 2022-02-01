@@ -1,0 +1,11 @@
+---
+title: "Assignment 2 - Task 2"
+author: "Conner Smith"
+date: "1/31/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+

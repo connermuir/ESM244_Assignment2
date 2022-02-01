@@ -1,5 +1,5 @@
 ---
-title: "Assignment 2 - Task 1"
+title: "Binomial Linear Regression with Palmetto Species"
 author: "Conner Smith"
 date: "1/27/2022"
 output: 
@@ -15,15 +15,16 @@ library(tidyverse)
 library(here)
 library(ggbeeswarm)
 library(broom)
-library(jtools)
 library(caret)
 library(AICcmodavg)
 library(cowplot)
+library(kableExtra)
+library(janitor)
 ```
 
 ## **Overview**
 
-This anslysis looks at the survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017. It uses binary logistic regression to predict whether a palmetto is species Serenoa repens or Sabal etonia. Data was collected by the Environemntal Data Initiative. 
+This anslysis looks at the survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017. It uses binary logistic regression to predict whether a palmetto is species Serenoa repens or Sabal etonia. Data was collected by the Environmental Data Initiative. 
 
 ## **Data Visualization**
 
@@ -42,8 +43,9 @@ This analysis uses binary logistic regression to test feasibility of using varia
 
 palmetto_clean <- palmetto %>% 
   select(year, species, height:green_lvs) %>% 
+  drop_na() %>% 
   mutate(species = case_when(species == "1" ~ "Serenoa repens",
-                   species == "2" ~ "Serenoa etonia"))
+                   species == "2" ~ "Sabal etonia"))
 
 #Creating summary of height to pull means for in-line code 
 
@@ -91,7 +93,7 @@ plot_grid(plots, ncol = 1,
 
 ##### **Figure 1:** *The left graph plots palmetto height by species with the box showing the median values as well as the the 75th and 25th percentile ranges. The diamond points represent the mean values. The right plot shows the distribution of leaf number by species.*
 
-These graphs show that both species have a similar height. The difference in mean height between the two species is only `r round(palmetto_summary$mean_height[2] - palmetto_summary$mean_height[1], 2)`centimeters. The taller of the two species, Serenoa repens tend to have more green leaves, although the range of leaf number is wider. Serenoa etonia were more closely clustered around 3-4 leaves.  
+These graphs show that both species have a similar height. The difference in mean height between the two species is only `r round(palmetto_summary$mean_height[2] - palmetto_summary$mean_height[1], 2)`centimeters. The taller of the two species, Serenoa repens tend to have more green leaves, although the range of leaf number is wider. Sabal etonia were more closely clustered around 3-4 leaves.  
 
 #### **Figure 2: Palmetto Canopy Width and Length by Species** 
 
@@ -141,7 +143,7 @@ plot_grid(plots, ncol = 1,
 
 ##### **Figure 2:** *The graph shows the height and length of palmetto canopy across the two species.*
 
-Both species show similar average canopy width and length with the Serenoa etonia showing higher mean values for both. For the width, the difference in means between the two species is `r round(palmetto_summary$mean_width[1] - palmetto_summary$mean_width[2], 2)` centimeters. The difference in average length is `r round(palmetto_summary$mean_length[1] - palmetto_summary$mean_length[2], 2)` centimeters.
+Both species show similar average canopy width and length with the Sabal etonia showing higher mean values for both. For the width, the difference in means between the two species is `r round(palmetto_summary$mean_width[1] - palmetto_summary$mean_width[2], 2)` centimeters. The difference in average length is `r round(palmetto_summary$mean_length[1] - palmetto_summary$mean_length[2], 2)` centimeters.
 
 ## **Model Analysis**
 
@@ -150,16 +152,141 @@ Now knowing a few general characteristics about the two species, this analysis w
 ```{r}
 # Perform the analysis twice, using cross validation to compare two models.
 
+palmetto_sub <- palmetto %>% 
+  select(year, species, height:green_lvs) %>% 
+  drop_na() %>% 
+  mutate(species = as.factor(species)) %>% 
+  mutate(species = fct_drop(species))
+
+# Note: code 1 (Serenoa repens) is the '0' level
+
 # Model 1: Log odds of plant type using plant height, canopy length, canopy width and green leaves as predictor variable.
 
 f1 <- species ~ height + width + length + green_lvs
+
+palmetto_blm1 <- glm(formula = f1, 
+                    data = palmetto_sub, 
+                    family = 'binomial')
+
+
+# Log odds to probability
+
+blm1_fitted <- palmetto_blm1 %>% 
+  augment(type.predict = 'response')
 
 # Model 2: Log odds of plant type using plant height, canopy width and green leaves (i.e., drop canopy length for this model)
 
 f2 <- species ~ height + width + green_lvs
 
+palmetto_blm2 <- glm(formula = f2, 
+                    data = palmetto_sub, 
+                    family = 'binomial')
+
+# Log odds to probability
+
+blm2_fitted <- palmetto_blm2 %>% 
+  augment(type.predict = 'response')
+
+
 ```
 
+```{r, results='asis'}
+# Assess the models with AICc first 
+
+aic <- aictab(list(palmetto_blm1, palmetto_blm2))
+
+# Model 2 has a lower corrected AIC value by 7 points, indcating better fit. 
+
+# Perform cross-validation with caret
+
+set.seed(123)
+
+tr_ctrl <- trainControl(method = "repeatedcv", 
+                        number = 10, repeats = 10)
+
+model1 <- train(f1, data = palmetto_sub, 
+                method = "glm", family = 'binomial',
+                trControl = tr_ctrl)
+
+
+model2 <- train(f2, data = palmetto_sub, 
+                method = "glm", family = 'binomial',
+                trControl = tr_ctrl)
+
+```
+
+Model 1 predicts the species of Palmetto with `r (round(model1$results$Accuracy, 3))*100` percent accuracy. This is slightly higher than the `r (round(model2$results$Accuracy, 3))*100` percent predictive accurary of Model 2. However, the corrected AIC value for Model 2 (`r round(aic$AICc[2], 0)`) is lower compared to model 1 (`r round(aic$AICc[1], 0)`). Given the more favorable AIC value and small reduction in predictive accuracy, this analysis will use Model 1.
+
+#### **Table 1:** *This table provides a summary of the coefficients associated with the different variables used in the model. Each coefficient had a p value less than 0.001. Serenoa repens is the reference species.* 
+```{r}
+# Train the final model (model 3) on the entire data set (not the folds). 
+
+final_model <- glm(formula = f1, 
+                    data = palmetto_sub, 
+                    family = 'binomial')
+
+# Use tidy to clean this up
+
+tidy_model <- tidy(final_model)
+
+tidy_model$p.value <- ifelse(tidy_model$p.value < .001, paste("< .001"))
+
+# Use kable to create a table of these stats
+
+final_table <- tidy_model %>% 
+  select(-statistic) %>% 
+  mutate(term = case_when(term == '(Intercept)' ~ 'Intercept',
+                          term == 'height' ~ 'Height',
+                          term == 'width' ~ 'Width',
+                          term == 'length' ~ 'Length',
+                          term == 'green_lvs' ~ 'Green Leaves')) %>%
+  kable(col.names = c("Variable", "Coefficients", 
+                      "Standard Error", "P Value"),
+        digits = 3) %>% 
+  kable_styling(bootstrap_options = "striped", 
+                position = "left", full_width = FALSE)
+final_table
+
+```
+
+This table shows the coefficients associated with each variable from Model 1. These reflect differences in the characteristics visualized above. In particular, the large negative coefficient for the number of green leaves means it is less likely the species is Serenoa repens (the reference species) as the number of green elaves increases. This is confirmed in **Figure 1**. 
+
+#### **Table 2:** *This table provides a summary of the percentage of accurate predictions from Model 1 for each species. The average accuracy of the model was* `r (round(model1$results$Accuracy, 2))*100` *percent* 
+```{r}
+# Use the fitted data set created above and establish a threshold at 50% where the model will predict species 2 above the threshold, and species 1 below the threshold. 
+
+blm1_thresh <- blm1_fitted %>% 
+  mutate(predicted = case_when(.fitted >= .5 ~ "2", 
+    .fitted < .5 ~ "1")) %>% # Now mutate a new column to show correct/incorrect
+  mutate(outcome = case_when(
+    species == predicted ~ "Correct",
+    species != predicted ~ "Incorrect"))
+  
+# Create a new df to show the counts correct/incorrect
+
+thresh_summary <- blm1_thresh %>% 
+  group_by(species, outcome) %>% 
+  count(outcome) %>% 
+  pivot_wider(names_from = outcome,
+              values_from = n) %>% 
+  mutate(species = case_when(
+    species == 1 ~ "Serenoa repens",
+    species == 2 ~ "Sabal etonia")) %>% 
+  column_to_rownames(var = "species") %>% 
+  mutate(pct_correct = round(Correct/(Correct + Incorrect)*100, 0)) %>% 
+  mutate(pct_correct = paste(pct_correct,"%", sep = ''))
+
+# Pass this new data frame into a finalized table. 
+
+thresh_summary %>% 
+  kable(col.names = c("Correct", "Incorrect", 
+                      "Percent Correct")) %>% 
+  kable_styling(bootstrap_options = "striped", 
+                position = "left", full_width = FALSE)
+
+```
+
+Model 1 was more accurate in predicting Sabal etonia comapred to Serenoa repens. The model correctly predicted that a palmetto was Serenoa repens `r thresh_summary$pct_correct[1]` of the time. The accuracy of predicting Sabal etonia was `r thresh_summary$pct_correct[2]`. This gives the average accuracy of `r (round(model1$results$Accuracy, 2))*100` percent referenced above. 
 
 ### **Data Citation**
 
