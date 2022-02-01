@@ -1,11 +1,125 @@
 ---
-title: "Assignment 2 - Task 2"
+title: "Lizard Length to Weight"
 author: "Conner Smith"
 date: "1/31/2022"
-output: html_document
+output: 
+  html_document: 
+    theme: flatly
+    code_folding: hide
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include=TRUE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(here)
+library(ggbeeswarm)
+library(broom)
+library(caret)
+library(Metrics)
+library(cowplot)
+library(kableExtra)
+library(janitor)
+library(purrr)
 ```
 
+## **Overview**
+
+This analysis uses non linear least squares to estimate parameters of a length to weight model for lizard populations in New Mexico. 
+
+
+```{r}
+lizards <- read_csv(here("data", "lizard.csv")) %>% 
+  mutate(sex = case_when(sex == 'F' ~ 'Female',
+                         sex == 'M' ~ 'Male'))
+```
+
+## **Parameter Selection**
+
+We know from the data that we need to fit a model where:
+
+\begin{equation}
+W=a(SVL)^b
+\end{equation}
+
+In this model, W is weight and SVL is the snout to vent length. We need to estimate the parameters a and b which can be derived from the a regression applied to the data. 
+
+```{r}
+# first, store the conceptual model as an object. 
+
+lizards_model <- function(a, SVL, b){
+ W = a*SVL^b
+return(W)
+}
+
+# now, log transform the data:
+
+log_lizards <- lizards %>% 
+  mutate(log_weight = log(weight)) %>% 
+  mutate(log_length = log(SV_length))
+
+# now we can generate guesses for the parameters from the coefficients 
+  
+parameter_guess <- lm(log_weight ~ log_length, data = log_lizards) 
+
+coef <- coefficients(parameter_guess)
+
+#From here, we see that the parameter for length (b) could be guessed as 2.54. From the transformation, we have the intercept equal to b*ln(a). So we can plug the intercept value in and divide by the coefficient for b to get the value of a.
+
+lizards_nls = nls(weight ~ lizards_model(a, SV_length, b),
+                  data = lizards,
+                  start = list(
+                    a = 2.718^(coef[1]/coef[2]),
+                    b = coef[2]),
+                    trace = TRUE)
+```
+
+##### **Table 1:** *This tables shows the estimated parameters of the NLS model. Each had a p value below 0.001.*
+
+```{r}
+#present the model in a table 
+
+tidy_nls <- tidy(lizards_nls)
+
+tidy_nls$p.value <- ifelse(tidy_nls$p.value < .001, paste("< .001"))
+
+tidy_nls %>%
+  select(-statistic) %>% 
+  kable(col.names = c("Parameter", "Estimate", 
+                      "Standard Error", "P Value"), digits = 4) %>% 
+  kable_styling(bootstrap_options = "striped", 
+                position = "left", full_width = FALSE)
+```
+
+The parameter estimates were used to provide initial guesses for the model, $ W = a(SVL)^b $. From the calculations here, we see that $a$ = `r round(tidy_nls$estimate[1], 4)` and $b$ = `r round(tidy_nls$estimate[2], 4)`. 
+
+#### **Figure 1: Predicted Versus Actual Lizard Weights**
+```{r}
+# Use the nls to generate predictions from the data 
+
+lizards_predict <- predict(lizards_nls)
+
+# Bind  predictions to the main data frame 
+
+lizards_complete <- data.frame(lizards, lizards_predict)
+
+# Plot the predictions faceting by sex:
+ggplot(data = lizards_complete, aes(x = SV_length,
+                                    y = lizards_predict)) +
+  geom_point(aes(x = SV_length, y = weight, color = sex)) +
+  geom_line() +
+  theme_minimal() +
+  theme(legend.title = element_text('Sex')) +
+  labs(x = "Snout to Vent Length (mm)",
+       y = "Predicted Weight (g)")
+```
+
+##### **Figure 1:** *This graph shows the actual weight of lizards separated by sex and a fitted non-linear least squares model (the black line) that predicts wight from snout to vent length.* 
+
+This graph shows that the fitted model predicts lizard weight from snout to vent length acceptably. 
+
+
+
+### **Data Citation**
+
+*Lightfoot, D. and W.G. Whitford. 2020. Lizard pitfall trap data from 11 NPP study locations at the Jornada Basin LTER site, 1989-2006 ver 37. Environmental Data Initiative. https://doi.org/10.6073/pasta/4a6e258fb49c31e222ecbbcfd128967f*
