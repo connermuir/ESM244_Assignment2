@@ -13,7 +13,6 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 
 library(tidyverse)
 library(here)
-library(ggbeeswarm)
 library(broom)
 library(caret)
 library(Metrics)
@@ -34,7 +33,7 @@ lizards <- read_csv(here("data", "lizard.csv")) %>%
                          sex == 'M' ~ 'Male'))
 ```
 
-## **Parameter Selection**
+## **General Model - Parameter Selection**
 
 We know from the data that we need to fit a model where:
 
@@ -91,7 +90,7 @@ tidy_nls %>%
                 position = "left", full_width = FALSE)
 ```
 
-The parameter estimates were used to provide initial guesses for the model, $ W = a(SVL)^b $. From the calculations here, we see that $a$ = `r round(tidy_nls$estimate[1], 4)` and $b$ = `r round(tidy_nls$estimate[2], 4)`. 
+The parameter estimates were used to provide initial guesses for the model, $ W = a(SVL)^b $. From the calculations here, we see that $a$ = `r round(tidy_nls$estimate[1], 4)` and $b$ = `r round(tidy_nls$estimate[2], 2)`. 
 
 #### **Figure 1: Predicted Versus Actual Lizard Weights**
 ```{r}
@@ -118,8 +117,44 @@ ggplot(data = lizards_complete, aes(x = SV_length,
 
 This graph shows that the fitted model predicts lizard weight from snout to vent length acceptably. 
 
+## **Specific Model**
 
+```{r}
+# Crate a data set to only include male Western Whiptail lizards
+whip <- lizards %>% 
+  filter(spp == 'CNTI') %>% 
+  filter(sex == 'Male')
 
+# Conduct the same coefficient estimation process as above 
+
+log_whip <- whip %>% 
+  mutate(log_weight = log(weight)) %>% 
+  mutate(log_length = log(SV_length))
+  
+whip_guess <- lm(log_weight ~ log_length, data = log_whip) 
+
+whip_coef <- coefficients(whip_guess)
+
+# Fit the estimates to a whiptail-specific NLS model
+
+whip_nls = nls(weight ~ lizards_model(a, SV_length, b),
+                  data = whip,
+                  start = list(
+                    a = 2.718^(whip_coef[1]/whip_coef[2]),
+                    b = whip_coef[2]),
+                    trace = TRUE)
+
+tidy_whip <- tidy(whip_nls)
+```
+
+The parameter estimates were used to provide initial guesses for the Western Whiptail-specific model, $ W_{whip} = a(SVL)^b $. From the calculations here, we see that $a$ = `r round(tidy_whip$estimate[1], 4)` and $b$ = `r round(tidy_whip$estimate[2], 2)`. We see that the $b$ parameter is slightly lower for this subset but the $a$
+ parameter is slightly higher. 
+ 
+```{r}
+# Plot the NLS for the full data against the NLS for the Whiptail subset, starting by calculating RMSE for both. 
+
+```
+ 
 ### **Data Citation**
 
 *Lightfoot, D. and W.G. Whitford. 2020. Lizard pitfall trap data from 11 NPP study locations at the Jornada Basin LTER site, 1989-2006 ver 37. Environmental Data Initiative. https://doi.org/10.6073/pasta/4a6e258fb49c31e222ecbbcfd128967f*
