@@ -15,11 +15,9 @@ library(tidyverse)
 library(here)
 library(broom)
 library(modelr)
-library(Metrics)
 library(cowplot)
 library(kableExtra)
 library(janitor)
-library(purrr)
 ```
 
 ## **Overview**
@@ -65,7 +63,7 @@ coef <- coefficients(parameter_guess)
 
 #From here, we see that the parameter for length (b) could be guessed as 2.54. From the transformation, we have the intercept equal to b*ln(a). So we can plug the intercept value in and divide by the coefficient for b to get the value of a.
 
-lizards_nls = nls(weight ~ lizards_model(a, SV_length, b),
+lizards_nls <- nls(weight ~ lizards_model(a, SV_length, b),
                   data = lizards,
                   start = list(
                     a = 2.718^(coef[1]/coef[2]),
@@ -74,7 +72,6 @@ lizards_nls = nls(weight ~ lizards_model(a, SV_length, b),
 ```
 
 ##### **Table 1:** *This tables shows the estimated parameters of the NLS model. Each had a p value below 0.001.*
-
 ```{r}
 # Present the model in a table 
 
@@ -90,7 +87,7 @@ tidy_nls %>%
                 position = "left", full_width = FALSE)
 ```
 
-The parameter estimates were used to provide initial guesses for the model, $ W = a(SVL)^b $. From the calculations here, we see that $a$ = `r round(tidy_nls$estimate[1], 4)` and $b$ = `r round(tidy_nls$estimate[2], 2)`. 
+The parameter estimates were used to provide initial guesses for the model, $W=a(SVL)^b$. From the calculations here, we see that $a$ = `r round(tidy_nls$estimate[1], 5)` and $b$ = `r round(tidy_nls$estimate[2], 2)`. 
 
 #### **Figure 1: Predicted Versus Actual Lizard Weights**
 ```{r}
@@ -151,11 +148,12 @@ whip_a <- tidy_whip$estimate[1]
 whip_b <- tidy_whip$estimate[2]
 ```
 
-The parameter estimates were used to provide initial guesses for the Western Whiptail-specific model, $ W_{whip} = a(SVL)^b $. From the calculations here, we see that $a$ = `r round(tidy_whip$estimate[1], 4)` and $b$ = `r round(tidy_whip$estimate[2], 2)`. We see that the $b$ parameter is slightly lower for this subset but the $a$
- parameter is slightly higher. 
+The parameter estimates were used to provide initial guesses for the Western Whiptail-specific model, $W_{whip}=a(SVL)^b$. From the calculations here, we see that $a$ = `r round(tidy_whip$estimate[1], 4)` and $b$ = `r round(tidy_whip$estimate[2], 2)`. We see that the $b$ parameter is slightly lower for this subset but the $a$ parameter is slightly higher. 
  
+
+#### **Figure 2: Model Comparison for Lizard Weights**
 ```{r}
-# Plot the NLS for the full data against the NLS for the Whiptail subset, starting by using both models to predict whiptail weight:
+#Plot the NLS for the full data against the NLS for the Whiptail subset, starting by using both models to predict whiptail weight:
 
 # pull only the whiptail predictions from the general model
 
@@ -194,6 +192,10 @@ ggplot(data = complete_predict) +
   labs(x = "Snout to Vent Length (mm)",
        y = "Weight (g)")
 ```
+ 
+##### **Figure 2:** *This graph shows the actual weight of lizards (red points) compared to predicted weights from both the whiptail-specific model (the yellow line) and the general model (purple line) from* **Figure 1**. *The whiptail-specific model is a better predictor of actual weights* (RMSE =`r round(rmse_whip, 2)`) *compared to the general model* (RMSE = `r round(rmse_general, 2)`). *This shows that the species-specific model is the better choice in this analysis.* 
+
+
  
 ### **Data Citation**
 
