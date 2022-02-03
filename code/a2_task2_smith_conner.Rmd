@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 library(tidyverse)
 library(here)
 library(broom)
-library(caret)
+library(modelr)
 library(Metrics)
 library(cowplot)
 library(kableExtra)
@@ -76,7 +76,7 @@ lizards_nls = nls(weight ~ lizards_model(a, SV_length, b),
 ##### **Table 1:** *This tables shows the estimated parameters of the NLS model. Each had a p value below 0.001.*
 
 ```{r}
-#present the model in a table 
+# Present the model in a table 
 
 tidy_nls <- tidy(lizards_nls)
 
@@ -96,24 +96,25 @@ The parameter estimates were used to provide initial guesses for the model, $ W 
 ```{r}
 # Use the nls to generate predictions from the data 
 
-lizards_predict <- predict(lizards_nls)
+general_model_predict <- predict(lizards_nls)
 
 # Bind  predictions to the main data frame 
 
-lizards_complete <- data.frame(lizards, lizards_predict)
+lizards_complete <- data.frame(lizards, general_model_predict)
 
-# Plot the predictions faceting by sex:
-ggplot(data = lizards_complete, aes(x = SV_length,
-                                    y = lizards_predict)) +
-  geom_point(aes(x = SV_length, y = weight, color = sex)) +
-  geom_line() +
+# Plot the predictions colored by sex:
+ggplot(data = lizards_complete, 
+       aes(x = SV_length, y = general_model_predict)) +
+  geom_point(aes(x = SV_length, y = weight, color = sex),
+             size = 1) +
+  scale_color_manual(values = c('tan1', 'sienna3')) +
+  geom_line(color = 'thistle4') +
   theme_minimal() +
-  theme(legend.title = element_text('Sex')) +
   labs(x = "Snout to Vent Length (mm)",
-       y = "Predicted Weight (g)")
+       y = "Weight (g)")
 ```
 
-##### **Figure 1:** *This graph shows the actual weight of lizards separated by sex and a fitted non-linear least squares model (the black line) that predicts wight from snout to vent length.* 
+##### **Figure 1:** *This graph shows the actual weight of lizards separated by sex and a fitted non-linear least squares model (the purple line) that predicts wight from snout to vent length.* 
 
 This graph shows that the fitted model predicts lizard weight from snout to vent length acceptably. 
 
@@ -145,14 +146,53 @@ whip_nls = nls(weight ~ lizards_model(a, SV_length, b),
                     trace = TRUE)
 
 tidy_whip <- tidy(whip_nls)
+
+whip_a <- tidy_whip$estimate[1]
+whip_b <- tidy_whip$estimate[2]
 ```
 
 The parameter estimates were used to provide initial guesses for the Western Whiptail-specific model, $ W_{whip} = a(SVL)^b $. From the calculations here, we see that $a$ = `r round(tidy_whip$estimate[1], 4)` and $b$ = `r round(tidy_whip$estimate[2], 2)`. We see that the $b$ parameter is slightly lower for this subset but the $a$
  parameter is slightly higher. 
  
 ```{r}
-# Plot the NLS for the full data against the NLS for the Whiptail subset, starting by calculating RMSE for both. 
+# Plot the NLS for the full data against the NLS for the Whiptail subset, starting by using both models to predict whiptail weight:
 
+# pull only the whiptail predictions from the general model
+
+lizards_complete_whip <- lizards_complete %>% 
+  filter(spp == "CNTI") %>% 
+  filter(sex == "Male")
+
+# species-specific prediction
+
+whip_model_predict <- predict(whip_nls)
+
+# bind the species specific prediction to the general prediction
+
+complete_predict <- data.frame(lizards_complete_whip, whip_model_predict)
+
+# From the data frame, we see slight variation in predictions between the two models. Now, we need to calculate the RMSE for both. 
+
+rmse_whip <- rmse(whip_nls, complete_predict)
+
+rmse_general <- rmse(lizards_nls, complete_predict)
+
+# Plot the predictions
+ggplot(data = complete_predict) +
+  geom_point(aes(x = SV_length, y = weight), 
+             color = "sienna3",
+             size = 1) +
+  geom_line(aes(x = SV_length, y = general_model_predict,
+                color = "General Model")) +
+  geom_line(aes(x = SV_length, y = whip_model_predict,
+                color = "Whiptail Model")) +
+  scale_colour_manual(values =
+                      c("General Model" = "thistle4",
+                        "Whiptail Model" = "darkgoldenrod2")) +
+  theme_minimal() +
+  theme(legend.title = element_blank()) +
+  labs(x = "Snout to Vent Length (mm)",
+       y = "Weight (g)")
 ```
  
 ### **Data Citation**
