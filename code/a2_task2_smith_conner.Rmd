@@ -1,5 +1,5 @@
 ---
-title: "Lizard Length to Weight"
+title: "Parameter Estimation to Predict Lizard Weight"
 author: "Conner Smith"
 date: "1/31/2022"
 output: 
@@ -22,7 +22,7 @@ library(janitor)
 
 ## **Overview**
 
-This analysis uses non linear least squares to estimate parameters of a length to weight model for lizard populations in New Mexico. It first estimates a model based on the entire data set including both male and female lizards across 13 species. The analysis then estimates a model specific to the Western Whiptail lizard (*Cnemidophorus tigrisatus*) and comapres the predictive accuracy of the species-specific model to the general model.
+This analysis uses non linear least squares to estimate parameters of a snout length to weight model for lizard populations in New Mexico. It first estimates a model based on the entire data set including both male and female lizards across 13 species. The analysis then estimates a model specific to the Western Whiptail lizard (*Cnemidophorus tigrisatus*) and compares the predictive accuracy of the species-specific model to the general model.
 
 ```{r}
 lizards <- read_csv(here("data", "lizard.csv")) %>% 
@@ -38,7 +38,7 @@ We know from the data that we need to fit a model where:
 W=a(SVL)^b
 \end{equation}
 
-In this model, W is weight and SVL is the snout to vent length. We need to estimate the parameters a and b which can be derived from the a regression applied to the data. 
+In this model, W is weight and SVL is the snout-to-vent length. We need to estimate the parameters a and b which can be derived from the a regression applied to the data. 
 
 ```{r, include=FALSE}
 # first, store the conceptual model as an object. 
@@ -108,15 +108,15 @@ ggplot(data = lizards_complete,
   theme_minimal() +
   theme(legend.title = element_blank(),
         legend.position = "bottom") +
-  labs(x = "Snout to Vent Length (mm)",
+  labs(x = "Snout Length (mm)",
        y = "Weight (g)")
 ```
 
 ##### **Figure 1:** *This graph shows the actual weight of lizards separated by sex and a fitted non-linear least squares model (the purple line) that predicts wight from snout to vent length.* 
 
-This graph shows that the fitted model predicts lizard weight from snout to vent length acceptably. 
+This graph shows that the fitted model predicts lizard weight from snout to vent length relatively closely. This shows that the initial parameter estimation strategy resulted in acceptable guesses to base this general model. The following section looks more closely at species-specific models. 
 
-## **Species-Specific Model Comparisson**
+## **Species-Specific Model Comparison**
 
 ```{r, include=FALSE}
 # Crate a data set to only include male Western Whiptail lizards
@@ -191,13 +191,13 @@ ggplot(data = complete_predict) +
   theme_minimal() +
   theme(legend.title = element_blank(),
         legend.position = "bottom") +
-  labs(x = "Snout to Vent Length (mm)",
+  labs(x = "Snout Length (mm)",
        y = "Weight (g)")
 ```
  
 ##### **Figure 2:** *This graph shows the actual weight of lizards (red points) compared to predicted weights from both the whiptail-specific model (the yellow line) and the general model (purple line) from* **Figure 1**. *The whiptail-specific model is a better predictor of actual weights* (RMSE =`r round(rmse_whip, 2)`) *compared to the general model* (RMSE = `r round(rmse_general, 2)`). *This shows that the species-specific model is the better choice in this analysis.* 
 
-The results of the mdoel comparisson show that the model attuned specifically to the male Western Whiptail lizards does a better job at predicting their actual weights than the generalized model trained on the entire data set. 
+The results of the model comparison (using a root-mean squared calculation) show that the model attuned specifically to the male Western Whiptail lizards does a better job at predicting the actual weights of these lizards compared to the generalized model trained on the entire data set. 
  
 ### **Data Citation**
 
