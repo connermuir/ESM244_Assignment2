@@ -1,5 +1,5 @@
 ---
-title: "Binomial Linear Regression with Palmetto Species"
+title: "Binomial Logistic Regression with Palmetto Species"
 author: "Conner Smith"
 date: "1/27/2022"
 output: 
@@ -24,7 +24,7 @@ library(janitor)
 
 ## **Overview**
 
-This anslysis looks at the survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017. It uses binary logistic regression to predict whether a palmetto is species Serenoa repens or Sabal etonia. Data was collected by the Environmental Data Initiative. 
+This analysis looks at the survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017. It uses binary logistic regression to predict whether a palmetto is species Serenoa repens or Sabal etonia. Data was collected by the Environmental Data Initiative. 
 
 ## **Data Visualization**
 
@@ -93,7 +93,7 @@ plot_grid(plots, ncol = 1,
 
 ##### **Figure 1:** *The left graph plots palmetto height by species with the box showing the median values as well as the the 75th and 25th percentile ranges. The diamond points represent the mean values. The right plot shows the distribution of leaf number by species.*
 
-These graphs show that both species have a similar height. The difference in mean height between the two species is only `r round(palmetto_summary$mean_height[2] - palmetto_summary$mean_height[1], 2)`centimeters. The taller of the two species, Serenoa repens tend to have more green leaves, although the range of leaf number is wider. Sabal etonia were more closely clustered around 3-4 leaves.  
+These graphs show that both species have a similar height, indicating this variable may not be significant in the model. The difference in mean height between the two species is only `r round(palmetto_summary$mean_height[2] - palmetto_summary$mean_height[1], 2)`centimeters. The taller of the two species, Serenoa repens tend to have more green leaves and the range of leaf number is wider. Sabal etonia were more closely clustered around 3-4 leaves. This indicted that leaf number could be one of the strongest predictive variables in this model. 
 
 #### **Figure 2: Palmetto Canopy Width and Length by Species** 
 
@@ -143,7 +143,7 @@ plot_grid(plots, ncol = 1,
 
 ##### **Figure 2:** *The graph shows the height and length of palmetto canopy across the two species.*
 
-Both species show similar average canopy width and length with the Sabal etonia showing higher mean values for both. For the width, the difference in means between the two species is `r round(palmetto_summary$mean_width[1] - palmetto_summary$mean_width[2], 2)` centimeters. The difference in average length is `r round(palmetto_summary$mean_length[1] - palmetto_summary$mean_length[2], 2)` centimeters.
+Both species show similar average canopy width and length with the Sabal etonia showing higher mean values for both. For the width, the difference in means between the two species is `r round(palmetto_summary$mean_width[1] - palmetto_summary$mean_width[2], 2)` centimeters. The difference in average length is `r round(palmetto_summary$mean_length[1] - palmetto_summary$mean_length[2], 2)` centimeters. This indicates that canopy length could be a stronger determinant of species in the model compared to canopy width. 
 
 ## **Model Analysis**
 
@@ -154,9 +154,9 @@ Now knowing a few general characteristics about the two species, this analysis w
 
 palmetto_sub <- palmetto %>% 
   select(year, species, height:green_lvs) %>% 
-  drop_na() %>% 
   mutate(species = as.factor(species)) %>% 
-  mutate(species = fct_drop(species))
+  mutate(species = fct_drop(species)) %>% 
+  drop_na()
 
 # Note: code 1 (Serenoa repens) is the '0' level
 
@@ -187,15 +187,21 @@ palmetto_blm2 <- glm(formula = f2,
 blm2_fitted <- palmetto_blm2 %>% 
   augment(type.predict = 'response')
 
-
-```
-
-```{r, results='asis'}
 # Assess the models with AICc first 
 
 aic <- aictab(list(palmetto_blm1, palmetto_blm2))
 
-# Model 2 has a lower corrected AIC value by 7 points, indcating better fit. 
+# Model 1 has a lower corrected AIC value, indicating better fit. 
+```
+
+An initial look at the AIC values indicate Model 1 may be a better fit. The corrected AIC value for Model 1 (`r round(aic$AICc[1], 0)`) is lower compared to model 2 (`r round(aic$AICc[2], 0)`). The difference in these values is large, indicating that including canopy length could be important for this model. 
+
+```{r}
+# Assess the models with AICc first 
+
+aic <- aictab(list(palmetto_blm1, palmetto_blm2))
+
+# Model 1 has a lower corrected AIC value, indicating better fit. 
 
 # Perform cross-validation with caret
 
@@ -215,9 +221,9 @@ model2 <- train(f2, data = palmetto_sub,
 
 ```
 
-Model 1 predicts the species of Palmetto with `r (round(model1$results$Accuracy, 3))*100` percent accuracy. This is slightly higher than the `r (round(model2$results$Accuracy, 3))*100` percent predictive accurary of Model 2. However, the corrected AIC value for Model 2 (`r round(aic$AICc[2], 0)`) is lower compared to model 1 (`r round(aic$AICc[1], 0)`). Given the more favorable AIC value and small reduction in predictive accuracy, this analysis will use Model 1.
+Model 1 predicts the species of Palmetto with `r (round(model1$results$Accuracy, 3))*100`% percent accuracy. This is slightly higher than the `r (round(model2$results$Accuracy, 3))*100`% predictive accuracy of Model 2. Given the more favorable AIC value and higher predictive accuracy, this analysis will use Model 1. 
 
-#### **Table 1:** *This table provides a summary of the coefficients associated with the different variables used in the model. Each coefficient had a p value less than 0.001. Serenoa repens is the reference species.* 
+##### **Table 1:** *This table provides a summary of the coefficients associated with the different variables used in the model. Each coefficient had a p value less than 0.001. Serenoa repens is the reference species.* 
 ```{r}
 # Train the final model (model 3) on the entire data set (not the folds). 
 
@@ -249,9 +255,9 @@ final_table
 
 ```
 
-This table shows the coefficients associated with each variable from Model 1. These reflect differences in the characteristics visualized above. In particular, the large negative coefficient for the number of green leaves means it is less likely the species is Serenoa repens (the reference species) as the number of green elaves increases. This is confirmed in **Figure 1**. 
+This table shows the coefficients associated with each variable from Model 1. These reflect differences in the characteristics visualized above. In particular, the large negative coefficient for the number of green leaves means it is less likely the species is Serenoa repens (the reference species) as the number of green leaves increases. This is confirmed in **Figure 1**. 
 
-#### **Table 2:** *This table provides a summary of the percentage of accurate predictions from Model 1 for each species. The average accuracy of the model was* `r (round(model1$results$Accuracy, 2))*100` *percent* 
+##### **Table 2:** *This table provides a summary of the percentage of accurate predictions from Model 1 for each species. The average accuracy of the model was* `r (round(model1$results$Accuracy, 2))*100`*%* 
 ```{r}
 # Use the fitted data set created above and establish a threshold at 50% where the model will predict species 2 above the threshold, and species 1 below the threshold. 
 
@@ -286,7 +292,7 @@ thresh_summary %>%
 
 ```
 
-Model 1 was more accurate in predicting Sabal etonia comapred to Serenoa repens. The model correctly predicted that a palmetto was Serenoa repens `r thresh_summary$pct_correct[1]` of the time. The accuracy of predicting Sabal etonia was `r thresh_summary$pct_correct[2]`. This gives the average accuracy of `r (round(model1$results$Accuracy, 2))*100` percent referenced above. 
+Model 1 was more accurate in predicting Sabal etonia comapred to Serenoa repens. The model correctly predicted that a palmetto was Serenoa repens `r thresh_summary$pct_correct[1]` of the time. The accuracy of predicting Sabal etonia was `r thresh_summary$pct_correct[2]`. This gives the average accuracy of `r (round(model1$results$Accuracy, 2))*100`% referenced above. 
 
 ### **Data Citation**
 
