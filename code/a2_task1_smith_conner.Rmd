@@ -158,7 +158,7 @@ palmetto_sub <- palmetto %>%
   mutate(species = fct_drop(species)) %>% 
   drop_na()
 
-# Note: code 1 (Serenoa repens) is the '0' level
+# Note: Sabal etonia is the '0' level
 
 # Model 1: Log odds of plant type using plant height, canopy length, canopy width and green leaves as predictor variable.
 
@@ -255,7 +255,7 @@ final_table
 
 ```
 
-This table shows the coefficients associated with each variable from Model 1. These reflect differences in the characteristics visualized above. In particular, the large negative coefficient for the number of green leaves means it is less likely the species is Serenoa repens (the reference species) as the number of green leaves increases. This is confirmed in **Figure 1**. 
+This table shows the coefficients associated with each variable from Model 1. These reflect differences in the characteristics visualized above. In particular, the large negative coefficient for the number of green leaves means it is less likely the species is Sabal etonia (the reference species) as the number of green leaves increases. This is confirmed in **Figure 1**. 
 
 ##### **Table 2:** *This table provides a summary of the percentage of accurate predictions from Model 1 for each species. The average accuracy of the model was* `r (round(model1$results$Accuracy, 2))*100`*%* 
 ```{r}
